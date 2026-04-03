@@ -94,7 +94,7 @@ bool init_display(void) {
 
 void clear_screen(MatrixPanel_I2S_DMA *display)
 {
-    display->fillScreen(dma_display->color565(5, 5, 5));// avoid true black to reduce ghosting
+    display->fillScreen(dma_display->color565(5, 5, 5));// avoid true black to mask ghosting
 }
 
 void drawLine(MatrixPanel_I2S_DMA *display, int x0, int y0, int x1, int y1, uint16_t color) {
