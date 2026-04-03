@@ -9,3 +9,7 @@ The system is designed with a clean separation between via different tasks:
 - Signal processing (FFT)
 - Rendering the display
 - I2S Mic Reading
+
+## Status
+
+Currently debugging a display ghosting issue, will implement further visualization features once fixed.
