@@ -6,6 +6,14 @@
 #include "esp_random.h"
 #include "dsp_fft.h"
 
+// HUB 75 Matrix Panel
+// JXI5020GP 16-Channel Constant Current LED Sink Driver
+// ICN74HC245TS octal bus transceiver with three-state outputs
+// ICN74HC138 high-performance CMOS 3-to-8 line decoder/demultiplexer
+// 4953 - 18CD - 1522
+
+
+// GPIO pin definitions for HUB75 matrix panel
 #define R1_PIN 4
 #define G1_PIN 5
 #define B1_PIN 18
@@ -18,10 +26,8 @@
 #define D_PIN -1
 #define E_PIN -1 
 #define LAT_PIN 25
-#define OE_PIN 32//16//13
+#define OE_PIN 32
 #define CLK_PIN 26  
-
-
 
 static const char *TAG = "draw_display";
 
@@ -36,6 +42,9 @@ static MatrixPanel_I2S_DMA *dma_display = nullptr;
 bar_t bars[MAX_BARS];
 int num_bars = 32;
 int brightness = BRIGHTNESS_DEFAULT;
+
+bool wait_for_render_notification = false;
+
 
 bool init_display(void) {
     if (dma_display) {
@@ -54,6 +63,7 @@ bool init_display(void) {
     mxconfig.latch_blanking = 2;
     //mxconfig.i2sspeed = HUB75_I2S_CFG::HZ_8M;
     mxconfig.setPixelColorDepthBits(6); // 6
+    mxconfig.driver = HUB75_I2S_CFG::SHIFTREG;
     //If your visualization has slightly non-black backgrounds (very dark blue, etc.) ghosting becomes far less visible.
     //If ghosting appears only on adjacent rows and is faint, it's typical driver settling ghosting.
     mxconfig.min_refresh_rate = 30;
@@ -123,12 +133,16 @@ static void render_task(void* args)
         vTaskDelete(NULL);
     }
 
+    ESP_LOGW(TAG, "Notification required: %s", wait_for_render_notification ? "YES" : "NO");
+
     while (1)
     {
         // wait for trigger
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-        vTaskDelay(pdMS_TO_TICKS(1)); // optional tiny yield
+        if (wait_for_render_notification) {
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(10)); // small delay to avoid hogging CPU if no notification is needed
+        }
 
         if (!display_renderer) continue;
 
@@ -155,8 +169,6 @@ void set_renderer(render_func_t renderer) {
 }
 
 
-
-
 ////////////////////////////
 //// Renderer Functions ////
 ////////////////////////////
@@ -165,6 +177,8 @@ void set_renderer(render_func_t renderer) {
 
 void render_test_movingpixel()
 {
+    wait_for_render_notification = false; // this renderer doesn't need notification, it just runs continuously
+
     static int i = 0;
     static int j = 0;
 
@@ -190,8 +204,25 @@ void render_test_movingpixel()
 
 }
 
+void render_test_horizontal_bars()
+{
+    wait_for_render_notification = false; // this renderer doesn't need notification, it just runs continuously
+
+    uint16_t color = dma_display->color565(0, 255, 0);
+
+    for (int x = 0; x < DISPLAY_WIDTH / 2; x+=2) {
+        dma_display->drawPixel(x, 0, color);
+    }
+    for (int x = 1; x < DISPLAY_WIDTH; x+=2) {
+        dma_display->drawPixel(x, 15, color);
+    }
+
+}
+
 void render_test_spectrum()
 {
+    wait_for_render_notification = true; // this renderer will wait for a notification before running
+
     const int NUM_BANDS = 32;
 
     // --- persistent state ---
@@ -273,6 +304,8 @@ float db_to_height(float db)
 }
 void render_spectrum_simple()
 {
+    wait_for_render_notification = true; // this renderer will wait for a notification before running
+
     const int NUM_BANDS = num_bars;
 
     spectrum_frame_t frame;
@@ -312,6 +345,8 @@ void render_spectrum_simple()
 
 void render_spectrum()
 {
+    wait_for_render_notification = true; // this renderer will wait for a notification before running
+
     const int NUM_BANDS = num_bars;
 
     // --- persistent state ---
@@ -454,19 +489,7 @@ void compute_waveform(int32_t *samples, int sample_count)
     }
 }
 
-/*
-void display_task(void *arg)
-{
-    float bands[32];
 
-    while (1)
-    {
-        xQueueReceive(display_queue, bands, portMAX_DELAY);
-
-        draw_spectrum(bands);
-    }
-}
-*/
 
 ////// Helper Functions //////
 /**

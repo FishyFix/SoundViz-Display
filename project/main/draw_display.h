@@ -46,6 +46,7 @@ void compute_waveform(int32_t *samples, int sample_count);
 void render_waveform();
 void render_text();
 void render_test_movingpixel();
+void render_test_horizontal_bars();
 void render_test_spectrum();
 void render_spectrum_simple();
 void render_spectrum();

@@ -129,17 +129,14 @@ void i2sfft_console_test() {
 }
 
 void display_test() {
+    ESP_LOGW(TAG, "Starting Display Test");
     // Initialize display
     if (!init_display()) {
         ESP_LOGE(TAG, "Failed to initialize display");
         return;
     }
 
-    while (1) {
-        //render_display(render_test_spectrum);
-        // Control speed
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
+    set_renderer(render_test_horizontal_bars);
 }
 
 void display_spectrum() {
@@ -166,5 +163,5 @@ void display_spectrum() {
 // The app_main function is called from the main task.  
 void app_main() {
     //i2sfft_console_test();
-    display_spectrum();
+    display_test();
 }
